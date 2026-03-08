@@ -373,13 +373,3 @@ ClawForge 不包含任何 Captain Claw 游戏资源。
 
 ---
 
-如果你准备 **正式发布 GitHub 项目**，我建议你再加 4 个文件：
-
-```
-LICENSE
-CONTRIBUTING.md
-SECURITY.md
-CHANGELOG.md
-```
-
-我可以直接帮你生成这 **四个标准开源文件**（很多项目都会缺这一步）。
