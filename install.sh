@@ -110,7 +110,6 @@ download_and_install_node() {
   ln -sf "${NODE_INSTALL_DIR}/bin/node" "${BIN_DIR}/node"
   ln -sf "${NODE_INSTALL_DIR}/bin/npm" "${BIN_DIR}/npm"
   ln -sf "${NODE_INSTALL_DIR}/bin/npx" "${BIN_DIR}/npx"
-  ln -sf "${NODE_INSTALL_DIR}/bin/corepack" "${BIN_DIR}/corepack"
 
   export PATH="${BIN_DIR}:${PATH}"
 }
@@ -142,11 +141,6 @@ configure_npm_prefix() {
   npm config set prefix "${LOCAL_PREFIX}" >/dev/null
 }
 
-enable_corepack() {
-  has_cmd corepack || die "corepack not found in PATH"
-  corepack enable >/dev/null 2>&1 || true
-}
-
 install_openclaw() {
   log "Installing OpenClaw..."
   npm install -g "${OPENCLAW_NPM_PACKAGE}"
@@ -172,7 +166,6 @@ main() {
   ensure_path
   download_and_install_node
   configure_npm_prefix
-  enable_corepack
   install_openclaw
   verify_install
 
