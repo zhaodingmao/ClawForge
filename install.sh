@@ -86,6 +86,20 @@ ensure_tar() {
   has_cmd tar || die "tar is required"
 }
 
+ensure_git() {
+  if has_cmd git; then
+    return
+  fi
+
+  if [ "${OS}" = "linux" ] && has_cmd sudo && has_cmd apt-get; then
+    log "Installing git..."
+    sudo apt-get update
+    sudo apt-get install -y git
+  else
+    die "git is required"
+  fi
+}
+
 ensure_dirs() {
   mkdir -p "${BIN_DIR}" "${NODE_INSTALL_ROOT}"
 }
@@ -141,8 +155,22 @@ configure_npm_prefix() {
   npm config set prefix "${LOCAL_PREFIX}" >/dev/null
 }
 
+force_github_https_for_git() {
+  has_cmd git || die "git not found in PATH"
+
+  log "Configuring git to use HTTPS instead of SSH for GitHub..."
+  git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+  git config --global url."https://github.com/".insteadOf "git@github.com:"
+}
+
+cleanup_failed_global_install() {
+  rm -rf "${LOCAL_PREFIX}/lib/node_modules/openclaw" 2>/dev/null || true
+  rm -f "${BIN_DIR}/openclaw" 2>/dev/null || true
+}
+
 install_openclaw() {
   log "Installing OpenClaw..."
+  cleanup_failed_global_install
   npm install -g "${OPENCLAW_NPM_PACKAGE}"
 }
 
@@ -162,10 +190,12 @@ main() {
   set_node_package_info
   ensure_curl
   ensure_tar
+  ensure_git
   ensure_dirs
   ensure_path
   download_and_install_node
   configure_npm_prefix
+  force_github_https_for_git
   install_openclaw
   verify_install
 
