@@ -7,7 +7,6 @@ OPENCLAW_NPM_PACKAGE="openclaw@latest"
 LOCAL_PREFIX="${HOME}/.local"
 BIN_DIR="${LOCAL_PREFIX}/bin"
 NODE_INSTALL_ROOT="${LOCAL_PREFIX}/nodejs"
-NODE_INSTALL_DIR="${NODE_INSTALL_ROOT}/node-v${NODE_VERSION}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {
@@ -54,6 +53,21 @@ detect_arch() {
   esac
 }
 
+set_node_package_info() {
+  NODE_EXTRACTED_DIR="node-v${NODE_VERSION}-${OS}-${ARCH}"
+
+  if [ "${OS}" = "linux" ]; then
+    NODE_FILENAME="${NODE_EXTRACTED_DIR}.tar.xz"
+    NODE_TAR_FLAGS="-xJf"
+  else
+    NODE_FILENAME="${NODE_EXTRACTED_DIR}.tar.gz"
+    NODE_TAR_FLAGS="-xzf"
+  fi
+
+  NODE_INSTALL_DIR="${NODE_INSTALL_ROOT}/${NODE_EXTRACTED_DIR}"
+  NODE_DOWNLOAD_URL="https://nodejs.org/dist/v${NODE_VERSION}/${NODE_FILENAME}"
+}
+
 ensure_curl() {
   if has_cmd curl; then
     return
@@ -77,38 +91,21 @@ ensure_dirs() {
 }
 
 download_and_install_node() {
-  local filename=""
-  local archive=""
+  local archive="${TMP_DIR}/${NODE_FILENAME}"
 
-  if [ "${OS}" = "linux" ]; then
-    filename="node-v${NODE_VERSION}-${OS}-${ARCH}.tar.xz"
-    archive="${TMP_DIR}/${filename}"
-
-    if [ -x "${NODE_INSTALL_DIR}/bin/node" ]; then
-      log "Node.js ${NODE_VERSION} already installed"
-    else
-      log "Downloading Node.js ${NODE_VERSION}..."
-      curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${filename}" -o "${archive}"
-
-      log "Installing Node.js ${NODE_VERSION}..."
-      mkdir -p "${NODE_INSTALL_ROOT}"
-      tar -xJf "${archive}" -C "${NODE_INSTALL_ROOT}"
-    fi
+  if [ -x "${NODE_INSTALL_DIR}/bin/node" ]; then
+    log "Node.js ${NODE_VERSION} already installed"
   else
-    filename="node-v${NODE_VERSION}-${OS}-${ARCH}.tar.gz"
-    archive="${TMP_DIR}/${filename}"
+    log "Downloading Node.js ${NODE_VERSION}..."
+    curl -fsSL "${NODE_DOWNLOAD_URL}" -o "${archive}"
 
-    if [ -x "${NODE_INSTALL_DIR}/bin/node" ]; then
-      log "Node.js ${NODE_VERSION} already installed"
-    else
-      log "Downloading Node.js ${NODE_VERSION}..."
-      curl -fsSL "https://nodejs.org/dist/v${NODE_VERSION}/${filename}" -o "${archive}"
-
-      log "Installing Node.js ${NODE_VERSION}..."
-      mkdir -p "${NODE_INSTALL_ROOT}"
-      tar -xzf "${archive}" -C "${NODE_INSTALL_ROOT}"
-    fi
+    log "Installing Node.js ${NODE_VERSION}..."
+    mkdir -p "${NODE_INSTALL_ROOT}"
+    tar ${NODE_TAR_FLAGS} "${archive}" -C "${NODE_INSTALL_ROOT}"
   fi
+
+  [ -x "${NODE_INSTALL_DIR}/bin/node" ] || die "node binary not found in ${NODE_INSTALL_DIR}"
+  [ -x "${NODE_INSTALL_DIR}/bin/npm" ] || die "npm binary not found in ${NODE_INSTALL_DIR}"
 
   ln -sf "${NODE_INSTALL_DIR}/bin/node" "${BIN_DIR}/node"
   ln -sf "${NODE_INSTALL_DIR}/bin/npm" "${BIN_DIR}/npm"
@@ -138,18 +135,15 @@ ensure_path() {
   if [ -f "${HOME}/.zshrc" ]; then
     append_path_once "${HOME}/.zshrc"
   fi
-
-  case ":${PATH}:" in
-    *":${BIN_DIR}:"*) ;;
-    *) die "Failed to add ${BIN_DIR} to PATH" ;;
-  esac
 }
 
 configure_npm_prefix() {
+  has_cmd npm || die "npm not found in PATH"
   npm config set prefix "${LOCAL_PREFIX}" >/dev/null
 }
 
 enable_corepack() {
+  has_cmd corepack || die "corepack not found in PATH"
   corepack enable >/dev/null 2>&1 || true
 }
 
@@ -171,6 +165,7 @@ verify_install() {
 main() {
   detect_os
   detect_arch
+  set_node_package_info
   ensure_curl
   ensure_tar
   ensure_dirs
