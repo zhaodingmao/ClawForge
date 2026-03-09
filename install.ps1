@@ -6,7 +6,6 @@ $OpenClawPackage = "openclaw@latest"
 $LocalPrefix = Join-Path $env:LOCALAPPDATA "ClawForge"
 $BinDir = Join-Path $LocalPrefix "bin"
 $NodeRoot = Join-Path $LocalPrefix "nodejs"
-$NodeInstallDir = Join-Path $NodeRoot "node-v$NodeVersion"
 $TempDir = Join-Path $env:TEMP ("clawforge-" + [guid]::NewGuid().ToString())
 
 function Write-Info($msg) { Write-Host "[INFO] $msg" -ForegroundColor Green }
@@ -16,12 +15,6 @@ function Write-Err($msg)  { Write-Host "[ERROR] $msg" -ForegroundColor Red }
 function Fail($msg) {
     Write-Err $msg
     exit 1
-}
-
-function Require-Command($name) {
-    if (-not (Get-Command $name -ErrorAction SilentlyContinue)) {
-        Fail "Missing command: $name"
-    }
 }
 
 function Ensure-Dirs {
@@ -43,39 +36,51 @@ function Install-Git {
     }
 
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        $gitCmd = Get-ChildItem "C:\Program Files\Git\cmd\git.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($gitCmd) {
-            $env:PATH = "C:\Program Files\Git\cmd;$env:PATH"
+        $possibleGitPaths = @(
+            "C:\Program Files\Git\cmd",
+            "C:\Program Files\Git\bin"
+        )
+
+        foreach ($p in $possibleGitPaths) {
+            if (Test-Path (Join-Path $p "git.exe")) {
+                $env:PATH = "$p;$env:PATH"
+                break
+            }
         }
     }
 
-    Require-Command git
+    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
+        Fail "Git installation failed or git is not available in PATH"
+    }
 }
 
 function Get-NodeArchiveInfo {
-    $arch = $env:PROCESSOR_ARCHITECTURE
-    switch ($arch) {
+    switch ($env:PROCESSOR_ARCHITECTURE) {
         "AMD64" { $nodeArch = "x64" }
         "ARM64" { $nodeArch = "arm64" }
-        default { Fail "Unsupported architecture: $arch" }
+        default { Fail "Unsupported architecture: $($env:PROCESSOR_ARCHITECTURE)" }
     }
 
-    $fileName = "node-v$NodeVersion-win-$nodeArch.zip"
+    $extractedDir = "node-v$NodeVersion-win-$nodeArch"
+    $fileName = "$extractedDir.zip"
     $url = "https://nodejs.org/dist/v$NodeVersion/$fileName"
 
     return @{
-        FileName = $fileName
-        Url = $url
+        NodeArch      = $nodeArch
+        ExtractedDir  = $extractedDir
+        FileName      = $fileName
+        Url           = $url
     }
 }
 
 function Install-Node {
+    $archive = Get-NodeArchiveInfo
+    $NodeInstallDir = Join-Path $NodeRoot $archive.ExtractedDir
     $nodeExe = Join-Path $NodeInstallDir "node.exe"
 
     if (Test-Path $nodeExe) {
         Write-Info "Node.js $NodeVersion already installed"
     } else {
-        $archive = Get-NodeArchiveInfo
         $zipPath = Join-Path $TempDir $archive.FileName
 
         Write-Info "Downloading Node.js $NodeVersion..."
@@ -85,14 +90,14 @@ function Install-Node {
         Expand-Archive -Path $zipPath -DestinationPath $NodeRoot -Force
     }
 
-    $npmCmd = Join-Path $NodeInstallDir "npm.cmd"
-    $npxCmd = Join-Path $NodeInstallDir "npx.cmd"
-    $corepackCmd = Join-Path $NodeInstallDir "corepack.cmd"
+    $script:NodeInstallDir = $NodeInstallDir
+    $script:NodeExe = Join-Path $NodeInstallDir "node.exe"
+    $script:NpmCmd = Join-Path $NodeInstallDir "npm.cmd"
+    $script:NpxCmd = Join-Path $NodeInstallDir "npx.cmd"
 
-    if (-not (Test-Path $nodeExe))  { Fail "node.exe not found after install" }
-    if (-not (Test-Path $npmCmd))   { Fail "npm.cmd not found after install" }
-    if (-not (Test-Path $npxCmd))   { Fail "npx.cmd not found after install" }
-    if (-not (Test-Path $corepackCmd)) { Fail "corepack.cmd not found after install" }
+    if (-not (Test-Path $script:NodeExe)) { Fail "node.exe not found after install" }
+    if (-not (Test-Path $script:NpmCmd)) { Fail "npm.cmd not found after install" }
+    if (-not (Test-Path $script:NpxCmd)) { Fail "npx.cmd not found after install" }
 
     $env:PATH = "$NodeInstallDir;$BinDir;$env:PATH"
 }
@@ -120,52 +125,66 @@ function Set-UserPath {
 }
 
 function Configure-NpmPrefix {
-    $npmCmd = Join-Path $NodeInstallDir "npm.cmd"
-    & $npmCmd config set prefix $LocalPrefix | Out-Null
+    & $script:NpmCmd config set prefix $LocalPrefix | Out-Null
 }
 
-function Enable-Corepack {
-    $corepackCmd = Join-Path $NodeInstallDir "corepack.cmd"
-    & $corepackCmd enable | Out-Null
+function Force-GitHubHttps {
+    Write-Info "Configuring git to use HTTPS instead of SSH for GitHub..."
+    git config --global url."https://github.com/".insteadOf "ssh://git@github.com/"
+    git config --global url."https://github.com/".insteadOf "git@github.com:"
+}
+
+function Cleanup-FailedGlobalInstall {
+    $moduleDir = Join-Path $LocalPrefix "node_modules\openclaw"
+    $shimCmd = Join-Path $LocalPrefix "openclaw.cmd"
+    $shimPs1 = Join-Path $LocalPrefix "openclaw.ps1"
+    $binWrapper = Join-Path $BinDir "openclaw.cmd"
+
+    if (Test-Path $moduleDir) { Remove-Item -Recurse -Force $moduleDir -ErrorAction SilentlyContinue }
+    if (Test-Path $shimCmd) { Remove-Item -Force $shimCmd -ErrorAction SilentlyContinue }
+    if (Test-Path $shimPs1) { Remove-Item -Force $shimPs1 -ErrorAction SilentlyContinue }
+    if (Test-Path $binWrapper) { Remove-Item -Force $binWrapper -ErrorAction SilentlyContinue }
 }
 
 function Install-OpenClaw {
-    $npmCmd = Join-Path $NodeInstallDir "npm.cmd"
     Write-Info "Installing OpenClaw..."
-    & $npmCmd install -g $OpenClawPackage
+    Cleanup-FailedGlobalInstall
+    & $script:NpmCmd install -g $OpenClawPackage
 }
 
 function Create-Wrapper {
-    $wrapper = Join-Path $BinDir "openclaw.cmd"
     $target = Join-Path $LocalPrefix "openclaw.cmd"
-
     if (-not (Test-Path $target)) {
         $target = Join-Path $BinDir "openclaw.cmd"
     }
+
+    if (-not (Test-Path $target)) {
+        Fail "openclaw.cmd not found after npm install"
+    }
+
+    $wrapper = Join-Path $BinDir "openclaw.cmd"
 
     $content = @"
 @echo off
 setlocal
 set PATH=$NodeInstallDir;$BinDir;%PATH%
-"$target" %*
+call "$target" %*
 "@
 
     Set-Content -Path $wrapper -Value $content -Encoding ASCII
 }
 
 function Verify-Install {
-    $openclawCmd = Join-Path $BinDir "openclaw.cmd"
-    $nodeExe = Join-Path $NodeInstallDir "node.exe"
-    $npmCmd = Join-Path $NodeInstallDir "npm.cmd"
+    $wrapper = Join-Path $BinDir "openclaw.cmd"
 
-    if (-not (Test-Path $openclawCmd)) { Fail "openclaw.cmd not found after install" }
+    if (-not (Test-Path $wrapper)) { Fail "openclaw.cmd wrapper not found after install" }
 
-    $nodeVersion = & $nodeExe -v
-    $npmVersion = & $npmCmd -v
+    $nodeVersionOut = & $script:NodeExe -v
+    $npmVersionOut = & $script:NpmCmd -v
 
-    Write-Info "Node: $nodeVersion"
-    Write-Info "npm: $npmVersion"
-    Write-Info "OpenClaw wrapper: $openclawCmd"
+    Write-Info "Node: $nodeVersionOut"
+    Write-Info "npm: $npmVersionOut"
+    Write-Info "OpenClaw wrapper: $wrapper"
 }
 
 try {
@@ -180,13 +199,13 @@ try {
     Install-Node
     Set-UserPath
     Configure-NpmPrefix
-    Enable-Corepack
+    Force-GitHubHttps
     Install-OpenClaw
     Create-Wrapper
     Verify-Install
 
     Write-Host ""
-    Write-Info "Install complete."
+    Write-Host "OpenClaw installed."
     Write-Host ""
     Write-Host "Next step:"
     Write-Host ""
