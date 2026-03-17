@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 const translations = {
   zh: {
     brand: "ClawForge",
-    tagline: "OpenClaw AI Agent 一键安装器",
+    tagline: "OpenClaw AI Agent 轻量级安装脚本",
     navInstall: "安装",
     navFeatures: "特性",
     navUsage: "用法",
@@ -11,7 +11,7 @@ const translations = {
     heroBadge: "跨平台 · Linux / macOS / Windows",
     heroTitle: "一条命令安装 OpenClaw。",
     heroDesc:
-      "ClawForge 是一个轻量级安装器，专注于帮助你快速完成 OpenClaw AI agent runtime 的安装与启动。减少环境配置成本，把注意力放回 agent 本身。",
+      "ClawForge 是一个轻量级安装脚本，专注于帮助你快速完成 OpenClaw AI agent的安装与启动",
     ctaStart: "开始安装",
     ctaGithub: "GitHub",
     oneCommand: "当前系统推荐命令",
@@ -45,7 +45,7 @@ const translations = {
     initStep3Title: "3. 继续配置",
     initStep3Desc: "根据需要执行 configure、models、channels 等命令完成后续接入。",
     usageLabel: "用法",
-    usageTitle: "安装器会做什么",
+    usageTitle: "安装脚本会做什么",
     usageDesc: "ClawForge 专注于为 OpenClaw AI agents 提供顺滑的启动路径。",
     step1: "检测你的平台并选择对应安装流程。",
     step2: "确保 Git 和 Node.js 可用。",
@@ -62,7 +62,7 @@ const translations = {
     faq3A: "是。项目设计目标就是便于查看、修改和扩展。",
     faq4Q: "安装后第一步应该做什么？",
     faq4A: "先运行 openclaw onboard --install-daemon，然后再执行 openclaw doctor。",
-    footerTagline: "OpenClaw AI agents 一条命令安装器",
+    footerTagline: "OpenClaw AI agents 轻量级安装脚本",
     langLabel: "语言",
     langZh: "中文",
     langEn: "English",
