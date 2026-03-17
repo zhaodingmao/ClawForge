@@ -55,7 +55,7 @@ const translations = {
     faqLabel: "常见问题",
     faqTitle: "你可能想知道",
     faq1Q: "ClawForge 是什么？",
-    faq1A: "一个专注于快速安装 OpenClaw AI agents 的轻量安装器。",
+    faq1A: "一个专注于快速安装 OpenClaw AI agents 的轻量级安装脚本。",
     faq2Q: "支持 Windows 吗？",
     faq2A: "支持。页面会显示 PowerShell 安装命令。",
     faq3Q: "它是开源的吗？",
