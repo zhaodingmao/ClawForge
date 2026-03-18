@@ -17,7 +17,7 @@ One-command installer for OpenClaw AI agents
 
 <p align="center">
 
-🌐 [https://clawforge.com.cn](https://clawforge.com.cn)
+🌐 Official Website [https://clawforge.com.cn](https://clawforge.com.cn)
 
 </p>
 
@@ -27,38 +27,12 @@ One-command installer for OpenClaw AI agents
 
 **ClawForge** 是一个用于 **快速部署 OpenClaw AI Agent** 的自动化安装工具。
 
-OpenClaw 是一个开源 **AI agent runtime**，可以在本地运行并执行任务。
-
 ClawForge 的目标是让 OpenClaw 的安装变得非常简单：
 
-```
-一条命令安装
-自动安装 Node.js
-自动下载 OpenClaw
-自动配置运行环境
-```
 
 ---
 
 # One-Command Install
-
-## Linux / macOS
-
-```bash
-curl -fsSL https://clawforge.com.cn/install.sh | bash
-```
-
----
-
-## Windows
-
-```powershell
-irm https://clawforge.com.cn/install.ps1 | iex
-```
-
----
-
-# Quick Start
 
 ### 1 安装 OpenClaw
 
@@ -123,27 +97,10 @@ npm dependencies
 
 ---
 
-# Project Structure
 
-```
-clawforge
-├─ install.sh
-├─ install.ps1
-├─ README.md
-└─ LICENSE
-```
 
----
 
-# Official Website
 
-[https://clawforge.com.cn](https://clawforge.com.cn)
-
-官网提供：
-
-* 安装脚本
-* 项目文档
-* Release 下载
 
 ---
 
